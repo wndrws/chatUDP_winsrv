@@ -20,7 +20,6 @@ extern char* program_name;
 #define sleep(t)        Sleep( (t) * 1000 )
 
 typedef unsigned long long addr_id;
-bool blockingMode = false;
 
 #ifdef __cplusplus
 }

@@ -1,10 +1,4 @@
-//
-// Created by WebSter on 28.11.2016.
-//
-
-#include <stdint.h>
 #include "etcp.h"
-#include "Data.h"
 
 // Прочесть len байтов из сокета sock и записать по указателю bp.
 int readn(addr_id aid, char* bp, int len) {

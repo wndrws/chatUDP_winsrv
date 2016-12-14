@@ -6,7 +6,7 @@
 
 Data::Data(char *udp_data) {
     addPacket(udp_data);
-    cur_byte = packets.cbegin()->getDataPointer();
+    cur_byte = (char*) packets.cbegin()->getDataPointer();
 }
 
 char* Data::getCurrentDataPointer() {
@@ -31,7 +31,7 @@ void Data::setCurrentDataPointer(char *p) {
     cur_byte = p;
     if(*cur_byte == '\0') {
         packets.erase(packets.begin());
-        if(!packets.empty()) cur_byte = packets.cbegin()->getDataPointer();
+        if(!packets.empty()) cur_byte = (char*) packets.cbegin()->getDataPointer();
         else cur_byte = NULL;
     }
 }

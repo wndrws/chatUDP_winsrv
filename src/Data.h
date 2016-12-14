@@ -7,6 +7,7 @@ class Data {
     char* cur_byte = NULL;
     set<Packet> packets;
 public:
+    Data() {};
     Data(char udp_data[]);
     char* getCurrentDataPointer();
     size_t getDataArrayCopy(char bufToWrite[]);
@@ -14,7 +15,3 @@ public:
     void setCurrentDataPointer(char* p);
     bool empty();
 };
-
-addr_id makeAddrID(const struct sockaddr_in *sap) {
-    return (sap->sin_addr.s_addr << 8*sizeof(u_short) + sap->sin_port);
-}

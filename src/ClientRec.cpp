@@ -4,7 +4,8 @@
 #include "ClientRec.h"
 
 extern unordered_map<int, ClientRec> clients;
-SOCKET udp_socket;
+extern SOCKET udpSocket;
+addr_id makeAddrID(const sockaddr_in *sap);
 
 ClientRec::ClientRec(HANDLE h_thread, sockaddr_in addr) {
     this->h_thread = h_thread;
@@ -15,7 +16,7 @@ ClientRec::ClientRec(HANDLE h_thread, sockaddr_in addr) {
 
 ClientRec::ClientRec() {
     h_thread = NULL;
-    m_sockaddr_in = NULL;
+    bzero(&m_sockaddr_in, sizeof(m_sockaddr_in));
     m_addrid = 0;
     m_id = 0;
 }
@@ -49,7 +50,7 @@ addr_id ClientRec::getAddrID() const {
 }
 
 SOCKET ClientRec::getSockToSend() const {
-    return udp_socket;
+    return udpSocket;
 }
 
 int ClientRec::getClientID() const {

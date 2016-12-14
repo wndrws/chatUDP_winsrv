@@ -9,17 +9,18 @@ char* program_name;
 #include "etcp.h"
 #include <iostream>
 #include <unordered_map>
-#include <set>
 #include "ClientRec.h"
 #include "automutex.h"
 
-SOCKET udp_socket;
+SOCKET udpSocket;
 bool stop = false;
 unordered_map<int, ClientRec> clients;
 unordered_map<addr_id, Data> storage;
 static CAutoMutex mutex;
+bool blockingMode = false;
 
 int findClient(string IDorName);
+addr_id makeAddrID(const sockaddr_in *sap);
 
 DWORD WINAPI clientThread(LPVOID clientID) {
     int id = *((int*) clientID);
@@ -112,7 +113,7 @@ DWORD WINAPI listener_run(LPVOID) {
 
     for( ; ; ) {
         // Blocking recvfrom
-        rcvdb = recvfrom(udp_socket, buf, sizeof(buf)-1, 0, (struct sockaddr*) &peer, &peerlen);
+        rcvdb = recvfrom(udpSocket, buf, sizeof(buf)-1, 0, (struct sockaddr*) &peer, &peerlen);
         if(rcvdb == SOCKET_ERROR) {
             cerr << "Error while listening for datagrams!" << endl;
             break;
@@ -123,15 +124,17 @@ DWORD WINAPI listener_run(LPVOID) {
         buf[rcvdb] = '\0';
         addr_id clientAddrID = makeAddrID(&peer);
         if(storage.find(clientAddrID) == storage.cend()) {
-            HANDLE th = CreateThread(NULL, 0, clientThread, (LPVOID) &clientAddrID, 0, NULL);
-            ClientRec newClient(th, peer);
+            ClientRec newClient(NULL, peer);
             storage[clientAddrID] = Data(buf);
-            clients[newClient.getClientID()] = newClient;
+            int newClientID = newClient.getClientID();
+            HANDLE th = CreateThread(NULL, 0, clientThread, (LPVOID) &newClientID, 0, NULL);
+            newClient.setThread(th);
+            clients[newClientID] = newClient;
         } else {
             storage.at(clientAddrID).addPacket(buf);
         }
     }
-    CLOSE(udp_socket);
+    CLOSE(udpSocket);
     return 0;
 }
 
@@ -148,7 +151,7 @@ int main(int argc, char** argv) {
         portname = argv[2];
     }
 
-    udp_socket = udp_server(hostname, portname);
+    udpSocket = udp_server(hostname, portname);
     th_listener = CreateThread(NULL, 0, listener_run, NULL, 0, NULL);
     cout << "Waiting for commands (type \"help\" for more information):" << endl;
     for( ; ; ) {
@@ -217,4 +220,8 @@ int findClient(string IDorName) {
         }
     }
     return -1;
+}
+
+addr_id makeAddrID(const sockaddr_in *sap) {
+    return ((unsigned long long) sap->sin_addr.s_addr << 8*sizeof(u_short) + sap->sin_port);
 }

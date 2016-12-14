@@ -7,6 +7,7 @@
 #define RECLEN_TYPE uint16_t
 
 extern unordered_map<addr_id, Data> storage;
+extern bool blockingMode;
 
 // Прочесть len байтов из дейтаграммы для aid и записать по указателю bp.
 int ureadn(addr_id aid, char* bp, int len) {
