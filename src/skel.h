@@ -19,6 +19,9 @@ extern char* program_name;
 #define bzero(b,n)      memset( ( b ), 0, ( n ) )
 #define sleep(t)        Sleep( (t) * 1000 )
 
+typedef unsigned long long addr_id;
+bool blockingMode = false;
+
 #ifdef __cplusplus
 }
 #endif

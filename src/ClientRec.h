@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "etcp.h"
+#include "Data.h"
 
 #define CODE_SRVMSG 0
 #define CODE_LOGINREQUEST 1
@@ -19,8 +20,7 @@
 #define CODE_OUTMSG 129
 
 #define MAX_USERNAME_LENGTH 32
-#define MAX_MSG_LENGTH 60000
-
+#define MAX_MSG_LENGTH 1400
 using namespace std;
 
 enum NotificationType { LOGIN, LOGOUT };
@@ -31,9 +31,9 @@ private:
     string m_name = "";
     HANDLE h_thread;
     volatile bool toClose = false;
-    SOCKET m_sock;
+    addr_id m_addrid;
     int m_id;
-    sockaddr_in* p_sockaddr_in;
+    sockaddr_in m_sockaddr_in;
 
     volatile bool m_notified = false;
     vector<string> m_loggedIn;
@@ -41,15 +41,16 @@ private:
 
     string formUsersList() const;
 public:
-    ClientRec(HANDLE, SOCKET, sockaddr_in*);
+    ClientRec(HANDLE, sockaddr_in);
     //ClientRec(const ClientRec&);
     ClientRec();
     string getName() const;
     string getFullName() const;
     HANDLE getThread() const;
-    SOCKET getSocketID() const;
+    addr_id getAddrID() const;
     int getClientID() const;
-    sockaddr_in* getSockaddr_in() const;
+    SOCKET getSockToSend() const;
+    sockaddr_in getSockaddr_in() const;
     bool isToClose() const;
 
     inline void notify(NotificationType);

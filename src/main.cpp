@@ -9,32 +9,32 @@ char* program_name;
 #include "etcp.h"
 #include <iostream>
 #include <unordered_map>
-#include <inaddr.h>
+#include <set>
 #include "ClientRec.h"
 #include "automutex.h"
 
-typedef unsigned long long t_id;
-SOCKET listening_socket;
+SOCKET udp_socket;
 bool stop = false;
-unordered_map<t_id, ClientRec> clients;
+unordered_map<int, ClientRec> clients;
+unordered_map<addr_id, Data> storage;
 static CAutoMutex mutex;
 
 int findClient(string IDorName);
 
 DWORD WINAPI clientThread(LPVOID clientID) {
-    u_long id = *((u_long*) clientID);
-    SOCKET s = clients.at(id).getSocketID();
+    int id = *((int*) clientID);
+    addr_id s = clients.at(id).getAddrID();
     unsigned char code = 255;
     int rcvdb, r;
     string name = "<unknown>";
     unordered_map<int, ClientRec>::const_iterator it;
-    u_long mode = 0;
+    //u_long mode = 0;
 
     while(!clients.at(id).isToClose()) {
-        if(mode == 0) {
-            mode = 1;
-            ioctlsocket(s, FIONBIO, &mode); // Make socket non-blocking
-        }
+//        if(mode == 0) {
+//            mode = 1;
+//            ioctlsocket(s, FIONBIO, &mode); // Make socket non-blocking
+//        }
         rcvdb = readn(s, (char*) &code, 1);
         if(rcvdb == 0) {
             clients.at(id).notify(NotificationType::LOGOUT);
@@ -53,8 +53,8 @@ DWORD WINAPI clientThread(LPVOID clientID) {
                 clients.at(id).close();
             }
         } else {
-            mode = 0;
-            ioctlsocket(s, FIONBIO, &mode); // Make socket blocking again
+//            mode = 0;
+//            ioctlsocket(s, FIONBIO, &mode); // Make socket blocking again
             switch (code) {
                 case CODE_LOGINREQUEST:
                     clients.at(id).login();
@@ -107,31 +107,31 @@ DWORD WINAPI listener_run(LPVOID) {
     SOCKET s;
     sockaddr_in peer;
     int peerlen = sizeof(peer);
-    char buf[1432]; // Max data size to avoid fragmentation
-    int res;
+    char buf[MAX_BUF_SIZE]; // Max data size to avoid fragmentation + 1 for null-terminating
+    int rcvdb;
 
     for( ; ; ) {
         // Blocking recvfrom
-        res = recvfrom(listening_socket, buf, sizeof(buf), 0, (struct sockaddr*) &peer, &peerlen);
-        if(res == SOCKET_ERROR) {
+        rcvdb = recvfrom(udp_socket, buf, sizeof(buf)-1, 0, (struct sockaddr*) &peer, &peerlen);
+        if(rcvdb == SOCKET_ERROR) {
             cerr << "Error while listening for datagrams!" << endl;
             break;
         }
         if(stop) {
             break;
         }
-        unsigned long long clientID = (peer.sin_addr.s_addr << 8*sizeof(u_short)) + peer.sin_port;
-        //TODO change "clients" to "storages" -> another map where id is ulonglong
-        //TODO make function that converts sockaddr_in into ulonglong
-        if(clients.find(clientID) == clients.cend()) { //TODO check for existens in "storages"
-            HANDLE th = CreateThread(NULL, 0, clientThread, (LPVOID) &clientID, 0, NULL);
-            ClientRec newClient(th, s, &peer);
-            clients[clientID] = newClient;
+        buf[rcvdb] = '\0';
+        addr_id clientAddrID = makeAddrID(&peer);
+        if(storage.find(clientAddrID) == storage.cend()) {
+            HANDLE th = CreateThread(NULL, 0, clientThread, (LPVOID) &clientAddrID, 0, NULL);
+            ClientRec newClient(th, peer);
+            storage[clientAddrID] = Data(buf);
+            clients[newClient.getClientID()] = newClient;
         } else {
-            //TODO add datagram to client's storage
+            storage.at(clientAddrID).addPacket(buf);
         }
     }
-    CLOSE(listening_socket);
+    CLOSE(udp_socket);
     return 0;
 }
 
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
         portname = argv[2];
     }
 
-    listening_socket = udp_server(hostname, portname);
+    udp_socket = udp_server(hostname, portname);
     th_listener = CreateThread(NULL, 0, listener_run, NULL, 0, NULL);
     cout << "Waiting for commands (type \"help\" for more information):" << endl;
     for( ; ; ) {
