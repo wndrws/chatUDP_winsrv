@@ -20,7 +20,6 @@ static CAutoMutex mutex;
 bool blockingMode = false;
 
 int findClient(string IDorName);
-addr_id makeAddrID(const sockaddr_in *sap);
 
 DWORD WINAPI clientThread(LPVOID clientID) {
     int id = *((int*) clientID);
@@ -46,6 +45,7 @@ DWORD WINAPI clientThread(LPVOID clientID) {
             if(error == WSAEWOULDBLOCK || error == WSAEINTR) {
                 // It's ok, continue doing job after some time
                 Sleep(200);
+                // TODO Need heartbeats from server as we don't know when client is crashed
             } else {
                 cerr << "Error: reading from socket " << s << endl;
                 if (!clients.at(id).getName().empty())
@@ -220,8 +220,4 @@ int findClient(string IDorName) {
         }
     }
     return -1;
-}
-
-addr_id makeAddrID(const sockaddr_in *sap) {
-    return ((unsigned long long) sap->sin_addr.s_addr << 8*sizeof(u_short) + sap->sin_port);
 }

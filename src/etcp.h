@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 void error(int, int, const char *, ...);
-int readn(SOCKET, char *, int);
-int readvrec(SOCKET, char *, int);
-int readline(SOCKET, char*, int);
+int readn(addr_id, char *, int);
+int readvrec(addr_id, char *, int);
+int readline(addr_id, char*, int);
 SOCKET udp_server(char*, char*);
 SOCKET udp_client(char*, char*, struct sockaddr_in*);
 static void set_address(char *, char *, struct sockaddr_in *, char *);
@@ -37,3 +37,6 @@ void init(char **argv);
 int ureadn(addr_id aid, char* bp, int len);
 int ureadvrec(addr_id aid, char* bp, int len);
 int ureadline(addr_id aid, char* bufptr, int len);
+int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg);
+addr_id makeAddrID(const struct sockaddr_in *sap);
+//sockaddr_in unMakeAddrID(addr_id aid);

@@ -3,6 +3,7 @@
 //
 
 #include <unordered_map>
+#include <chrono>
 #include "Data.h"
 #define RECLEN_TYPE uint16_t
 
@@ -92,7 +93,7 @@ int ureadvrec(addr_id aid, char* bp, int len) {
 // Прочесть из дейтаграммы для aid одну строку (до '\n') по указателю bufptr.
 // Максимальный размер буфера для записи равен len.
 int ureadline(addr_id aid, char* bufptr, int len) {
-    //char* bufx = bufptr;
+    char* bufx = bufptr;
     //static char* bp;
     //static int cnt = 0;
     //static char b[65536];
@@ -115,12 +116,13 @@ int ureadline(addr_id aid, char* bufptr, int len) {
     ptr = storage.at(aid).getCurrentDataPointer();
 
     int cnt = 0;
-    while(*ptr != '\n' && *ptr != '\0' && cnt < size) {
-        *bufptr++ = *ptr++;
+    while(*ptr != '\n' && *ptr != '\0' && cnt < size && cnt < len) {
+        *bufx++ = *ptr++;
         cnt++;
     }
+    if(cnt == len) fprintf(stderr, "Line is too big for buffer size provided to ureadline()!\n");
     if(*ptr == '\0') fprintf(stderr, "Symbol '\\0' met before '\\n' in ureadline()!\n");
-    *bufptr = '\n';
+    *bufx = '\n';
     if(cnt == size) fprintf(stderr, "Datagram end reached in ureadline()!\n");
 
     return cnt;
@@ -165,4 +167,28 @@ int ureadline(addr_id aid, char* bufptr, int len) {
 
 //    set_errno(EMSGSIZE);
 //    return -1;
+}
+
+addr_id makeAddrID(const struct sockaddr_in *sap) {
+    return ((unsigned long long) sap->sin_addr.s_addr << 8*sizeof(u_short) + sap->sin_port);
+}
+
+sockaddr_in unMakeAddrID(addr_id aid) {
+    u_short port = (u_short) (aid % 0x10000);
+    u_long addr = (u_long) (aid >> 8*sizeof(u_short));
+    sockaddr_in peer;
+    bzero(&peer, sizeof(peer));
+    peer.sin_addr.S_un.S_addr = addr;
+    peer.sin_port = port;
+    peer.sin_family = AF_INET;
+    return peer;
+}
+
+int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg) {
+    // Add timestamp to the message
+    chrono::time_point<chrono::system_clock> now = chrono::system_clock::now();
+    string fullmsg = to_string(chrono::duration_cast<chrono::microseconds>(now.time_since_epoch()).count());
+    fullmsg.append("\n").append(msg);
+    //sockaddr_in peer = unMakeAddrID(aid);
+    return sendto(sock, fullmsg.c_str(), (int) fullmsg.length(), 0, (sockaddr*) &peer, sizeof(peer));
 }
