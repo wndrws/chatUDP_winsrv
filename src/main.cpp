@@ -35,6 +35,7 @@ DWORD WINAPI clientThread(LPVOID clientID) {
 //            mode = 1;
 //            ioctlsocket(aid, FIONBIO, &mode); // Make socket non-blocking
 //        }
+        blockingMode = false;
         rcvdb = readn(aid, (char*) &code, 1);
         if(rcvdb == 0) {
             clients.at(id).notify(NotificationType::LOGOUT);
@@ -102,7 +103,6 @@ DWORD WINAPI clientThread(LPVOID clientID) {
 HANDLE th_listener;
 DWORD WINAPI listener_run(LPVOID) {
     //printf("%s: listener thread started.\n", program_name);
-    SOCKET s;
     sockaddr_in peer;
     int peerlen = sizeof(peer);
     char buf[MAX_BUF_SIZE]; // Max data size to avoid fragmentation + 1 for null-terminating
@@ -120,6 +120,7 @@ DWORD WINAPI listener_run(LPVOID) {
         }
         buf[rcvdb] = '\0';
         addr_id clientAddrID = makeAddrID(&peer);
+        cout << "New datagram received from host with id " << clientAddrID << endl;
         if(storage.find(clientAddrID) == storage.cend()) {
             ClientRec newClient(NULL, peer);
             storage[clientAddrID] = Data(buf);
@@ -187,7 +188,7 @@ int main(int argc, char** argv) {
     //Traverse clients calling close() on each one and joining their threads.
     for(auto&& client : clients) {
         client.second.forcedLogout();
-        cout << "Closing socket " << client.first << endl;
+        cout << "Closing session with client " << client.first << endl;
         client.second.close();
     }
     stop = true;

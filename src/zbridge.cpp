@@ -120,13 +120,13 @@ int ureadline(addr_id aid, char* bufptr, int len) {
         *bufx++ = *ptr++;
         cnt++;
     }
-    if(cnt == len) fprintf(stderr, "Line is too big for buffer size provided to ureadline()!\n");
+    if(cnt == len && *ptr != '\n') fprintf(stderr, "Line is too big for buffer size provided to ureadline()!\n");
     if(*ptr == '\0') fprintf(stderr, "Symbol '\\0' met before '\\n' in ureadline()!\n");
     *bufx = '\n';
-    if(cnt == size) fprintf(stderr, "Datagram end reached in ureadline()!\n");
-
+    if(cnt == size) fprintf(stderr, "Info: Datagram end reached in ureadline()!\n");
+    if(cnt < len) *(++bufx) = '\0';
     storage.at(aid).setCurrentDataPointer(++ptr);
-    return ++cnt;
+    return (int) (bufx - bufptr);
 //    while (--len > 0) {
 //        cnt = recv(aid, &c, 1, 0);
 //        if (cnt < 0) {
