@@ -4,9 +4,10 @@
 
 #include "Data.h"
 
-Data::Data(char *udp_data) {
+Data::Data(char *udp_data, int id) {
     addPacket(udp_data);
     cur_byte = (char*) packets.cbegin()->getDataPointer();
+    clientID = id;
 }
 
 char* Data::getCurrentDataPointer() {
@@ -32,6 +33,11 @@ void Data::addPacket(char *udp_data) {
 }
 
 void Data::setCurrentDataPointer(char *p) {
+    if(p == NULL) {
+        if(!packets.empty()) cur_byte = (char*) packets.cbegin()->getDataPointer();
+        else cur_byte = NULL;
+        return;
+    }
     cur_byte = p;
     if(*cur_byte == '\0') {
         packets.erase(packets.begin());
@@ -41,3 +47,5 @@ void Data::setCurrentDataPointer(char *p) {
 }
 
 bool Data::empty() { return packets.empty(); }
+
+int Data::getClientID() { return clientID; }

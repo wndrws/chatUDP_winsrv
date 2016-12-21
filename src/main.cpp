@@ -26,6 +26,9 @@ DWORD WINAPI clientThread(LPVOID clientID) {
     addr_id aid = clients.at(id).getAddrID();
     unsigned char code = 255;
     int rcvdb, r;
+    int hbcnt = 0;
+    unsigned int timeQuantum = 200;
+    unsigned int timeHb = 10000;
     string name = "<unknown>";
     unordered_map<int, ClientRec>::const_iterator it;
     //u_long mode = 0;
@@ -46,7 +49,14 @@ DWORD WINAPI clientThread(LPVOID clientID) {
             if(error == WSAEWOULDBLOCK || error == WSAEINTR) {
                 // It'aid ok, continue doing job after some time
                 Sleep(200);
-                // TODO Need heartbeats from server as we don't know when client is crashed
+                if(++hbcnt == timeHb/timeQuantum) clients.at(id).sendReqHeartbeat();
+                else if(hbcnt == 2*timeHb/timeQuantum) clients.at(id).sendReqHeartbeat();
+                else if(hbcnt == 3*timeHb/timeQuantum) clients.at(id).sendReqHeartbeat();
+                else if(hbcnt == 4*timeHb/timeQuantum) {
+                    cerr << "Error: client with id " << id << " is not responding.\n" << endl;
+                    clients.at(id).notify(NotificationType::LOGOUT);
+                    clients.at(id).close();
+                }
             } else {
                 cerr << "Error: reading from host " << aid << endl;
                 if (!clients.at(id).getName().empty())
@@ -57,6 +67,10 @@ DWORD WINAPI clientThread(LPVOID clientID) {
         } else {
 //            mode = 0;
 //            ioctlsocket(aid, FIONBIO, &mode); // Make socket blocking again
+            if(!clients.at(id).isLoggedIn() && code != CODE_LOGINREQUEST) {
+                storage.at(aid).setCurrentDataPointer(NULL);
+                continue;
+            }
             blockingMode = true;
             switch (code) {
                 case CODE_LOGINREQUEST:
@@ -70,19 +84,23 @@ DWORD WINAPI clientThread(LPVOID clientID) {
                     clients.at(id).close();
                     break;
                 case CODE_INMSG:
+                    clients.at(id).sendAck();
                     r = clients.at(id).transmitMsg();
                     if(r < 0) {
                         if(r == -2) clients.at(id).sendMsg("Message is not delivered - destination user is offline");
                         else clients.at(id).sendErrorMsg(42, "Failed to transmit the message");
                     }
                     break;
-                case CODE_HEARTBEAT:
+                case CODE_CLIHEARTBEAT:
                     // Send heartbeat in answer
-                    if(!clients.at(id).sendHeartbeat()) {
+                    if(!clients.at(id).sendAnsHeartbeat()) {
                         cerr << "User " + name+"#"+to_string(id) + " is gone." << endl;
                         clients.at(id).notify(NotificationType::LOGOUT);
                         clients.at(id).close();
                     }
+                    break;
+                case CODE_SRVHEARTBEAT:
+                    hbcnt = 0;
                     break;
                 default:
                     cerr << "Info: Incorrect packet code received from host " << aid << endl;
@@ -95,6 +113,7 @@ DWORD WINAPI clientThread(LPVOID clientID) {
     {
         SCOPE_LOCK_MUTEX(mutex.get());
         clients.erase(id);
+        storage.erase(aid);
     }
     cerr << "Info: Client with id " << id << " at host " << aid << " is erased from users list." << endl;
     return 0;
@@ -120,19 +139,19 @@ DWORD WINAPI listener_run(LPVOID) {
         }
         buf[rcvdb] = '\0';
         addr_id clientAddrID = makeAddrID(&peer);
-        cout << "New datagram received from host with id " << clientAddrID << endl;
-        if(storage.find(clientAddrID) == storage.cend()) {
+        //cout << "New datagram received from host with id " << clientAddrID << endl;
+        auto it = storage.find(clientAddrID);
+        if(it == storage.cend()) {
             ClientRec newClient(NULL, peer);
-            storage[clientAddrID] = Data(buf);
             int newClientID = newClient.getClientID();
+            clients[newClientID] = newClient;
+            storage[clientAddrID] = Data(buf, newClientID);
             HANDLE th = CreateThread(NULL, 0, clientThread, (LPVOID) &newClientID, 0, NULL);
             newClient.setThread(th);
-            clients[newClientID] = newClient;
         } else {
             storage.at(clientAddrID).addPacket(buf);
         }
     }
-    CLOSE(udpSocket);
     return 0;
 }
 
@@ -191,6 +210,7 @@ int main(int argc, char** argv) {
         cout << "Closing session with client " << client.first << endl;
         client.second.close();
     }
+    CLOSE(udpSocket);
     stop = true;
     EXIT(0);
 }

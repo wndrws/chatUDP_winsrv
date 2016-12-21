@@ -37,6 +37,7 @@ void init(char **argv);
 int ureadn(addr_id aid, char* bp, int len);
 int ureadvrec(addr_id aid, char* bp, int len);
 int ureadline(addr_id aid, char* bufptr, int len);
-int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg);
+//int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg);
+int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg, int len);
 addr_id makeAddrID(const struct sockaddr_in *sap);
 //sockaddr_in unMakeAddrID(addr_id aid);

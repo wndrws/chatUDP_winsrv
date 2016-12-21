@@ -13,11 +13,13 @@
 #define CODE_LOGINNOTIFY 6
 #define CODE_LOGOUTNOTIFY 7
 #define CODE_SRVERR 8
-#define CODE_HEARTBEAT 9
-#define CODE_SRVMSG 10
+#define CODE_CLIHEARTBEAT 9
+#define CODE_SRVHEARTBEAT 10
+#define CODE_SRVMSG 11
 
 #define CODE_INMSG 128
 #define CODE_OUTMSG 129
+#define CODE_ACK 130
 
 #define MAX_USERNAME_LENGTH 32
 #define MAX_MSG_LENGTH 1400
@@ -30,10 +32,11 @@ class ClientRec {
 private:
     string m_name = "";
     HANDLE h_thread;
-    volatile bool toClose = false;
+    volatile bool b_toClose = false;
     addr_id m_addrid;
     int m_id;
     sockaddr_in m_sockaddr_in;
+    bool b_isLoggedIn = false;
 
     volatile bool m_notified = false;
     vector<string> m_loggedIn;
@@ -52,6 +55,7 @@ public:
     SOCKET getSockToSend() const;
     sockaddr_in getSockaddr_in() const;
     bool isToClose() const;
+    bool isLoggedIn() const;
 
     inline void notify(NotificationType);
 
@@ -67,5 +71,7 @@ public:
     void sendErrorMsg(int errcode, const string& descr) const;
     void sendMsg(const string& text) const;
     int transmitMsg() const;
-    bool sendHeartbeat() const;
+    bool sendAnsHeartbeat() const;
+    bool sendReqHeartbeat() const;
+    void sendAck() const;
 };

@@ -34,7 +34,7 @@ int ureadn(addr_id aid, char* bp, int len) {
         *bp++ = *ptr++;
         cnt++;
     }
-    if(cnt == size) fprintf(stderr, "Datagram end reached in ureadn()!\n");
+    //if(cnt == size) fprintf(stderr, "Datagram end reached in ureadn()!\n");
 
 //    int cnt, rc;
 //
@@ -123,7 +123,7 @@ int ureadline(addr_id aid, char* bufptr, int len) {
     if(cnt == len && *ptr != '\n') fprintf(stderr, "Line is too big for buffer size provided to ureadline()!\n");
     if(*ptr == '\0') fprintf(stderr, "Symbol '\\0' met before '\\n' in ureadline()!\n");
     *bufx = '\n';
-    if(cnt == size) fprintf(stderr, "Info: Datagram end reached in ureadline()!\n");
+    //if(cnt == size) fprintf(stderr, "Info: Datagram end reached in ureadline()!\n");
     if(cnt < len) *(++bufx) = '\0';
     storage.at(aid).setCurrentDataPointer(++ptr);
     return (int) (bufx - bufptr);
@@ -185,11 +185,24 @@ sockaddr_in unMakeAddrID(addr_id aid) {
     return peer;
 }
 
-int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg) {
+//int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg) {
+//    // Add timestamp to the message
+//    chrono::time_point<chrono::system_clock> now = chrono::system_clock::now();
+//    string fullmsg = to_string(chrono::duration_cast<chrono::microseconds>(now.time_since_epoch()).count());
+//    fullmsg.append("\n").append(msg);
+//    //sockaddr_in peer = unMakeAddrID(aid);
+//    return sendto(sock, fullmsg.c_str(), (int) fullmsg.length(), 0, (sockaddr*) &peer, sizeof(peer));
+//}
+
+int usendto(SOCKET sock, struct sockaddr_in peer, const char* msg, int len = 0) {
     // Add timestamp to the message
     chrono::time_point<chrono::system_clock> now = chrono::system_clock::now();
     string fullmsg = to_string(chrono::duration_cast<chrono::microseconds>(now.time_since_epoch()).count());
-    fullmsg.append("\n").append(msg);
+    unsigned long long minlen = fullmsg.append("\n").length();
+    fullmsg.append(msg);
+    unsigned long long fulllen;
+    if(len == 0) fulllen = fullmsg.length();
+    else fulllen = minlen + len;
     //sockaddr_in peer = unMakeAddrID(aid);
-    return sendto(sock, fullmsg.c_str(), (int) fullmsg.length(), 0, (sockaddr*) &peer, sizeof(peer));
+    return sendto(sock, fullmsg.c_str(), (int) fulllen, 0, (sockaddr*) &peer, sizeof(peer));
 }

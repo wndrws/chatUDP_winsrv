@@ -22,7 +22,7 @@ ClientRec::ClientRec() {
 }
 
 void ClientRec::close() {
-    toClose = true;
+    b_toClose = true;
 }
 
 void ClientRec::setName(const string& name) {
@@ -62,7 +62,11 @@ sockaddr_in ClientRec::getSockaddr_in() const {
 }
 
 bool ClientRec::isToClose() const {
-    return toClose;
+    return b_toClose;
+}
+
+bool ClientRec::isLoggedIn() const {
+    return b_isLoggedIn;
 }
 
 void ClientRec::login() {
@@ -79,10 +83,11 @@ void ClientRec::login() {
     //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_LOGINANSWER);
     //msg.insert(1, (char*) &len, 2);
-    r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str());
+    r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str(), 0);
     if(r == -1) {
         cerr << "Failed to send users list to " << getFullName() << endl;
     }
+    b_isLoggedIn = true;
     notify(NotificationType::LOGIN);
 }
 
@@ -136,7 +141,7 @@ void ClientRec::sendNotifications() {
         ss << "\4\n"; //End Of Transmission
         msg = ss.str();
         msg.insert(0, 1, (char) CODE_LOGINNOTIFY);
-        r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str());
+        r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str(), 0);
         if (r == -1) {
             cerr << "Failed to send login notification to " << getFullName() << endl;
         } else m_loggedIn.clear();
@@ -151,7 +156,7 @@ void ClientRec::sendNotifications() {
         ss << "\4\n"; //End Of Transmission
         msg = ss.str();
         msg.insert(0, 1, (char) CODE_LOGOUTNOTIFY);
-        r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str());
+        r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str(), 0);
         if (r == -1) {
             cerr << "Failed to send logout notification to " << getFullName() << endl;
         } else m_loggedOut.clear();
@@ -161,7 +166,7 @@ void ClientRec::sendNotifications() {
 
 void ClientRec::logout() {
     char code = CODE_LOGOUTANSWER;
-    int r = usendto(getSockToSend(), getSockaddr_in(), &code);
+    int r = usendto(getSockToSend(), getSockaddr_in(), &code, 1);
     if(r == -1) {
         cerr << "Failed to send logout answer to " << getFullName() << endl;
     }
@@ -170,7 +175,7 @@ void ClientRec::logout() {
 
 void ClientRec::forcedLogout() {
     char code = CODE_FORCEDLOGOUT;
-    int r = usendto(getSockToSend(), getSockaddr_in(), &code);
+    int r = usendto(getSockToSend(), getSockaddr_in(), &code, 1);
     if(r == -1) {
         cerr << "Failed to send forced logout message to " << getFullName();
         cerr << strerror(errno);
@@ -184,7 +189,7 @@ void ClientRec::sendErrorMsg(int errcode, const string& descr) const {
     uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_SRVERR);
     msg.insert(1, (char*) &len, 2);
-    int r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str());
+    int r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str(), 0);
     if(r == -1) {
         cerr << "Failed to send error message to " << getFullName() << endl;
     }
@@ -195,7 +200,7 @@ void ClientRec::sendMsg(const string &text) const {
     //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_SRVMSG);
     //msg.insert(1, (char*) &len, 2);
-    int r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str());
+    int r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str(), 0);
     if(r == -1) {
         cerr << "Failed to send message to " << getFullName() << endl;
         cerr << strerror(errno);
@@ -226,7 +231,7 @@ int ClientRec::transmitMsg() const {
     //msg.insert(0, (char*) &len, 2);
     msg = to_string(getClientID()) + "\n" + msg; // Already contains trailing "\n"
     msg.insert(0, 1, (char) CODE_OUTMSG);
-    r = usendto(clients.at(id).getSockToSend(), clients.at(id).getSockaddr_in(), msg.c_str());
+    r = usendto(clients.at(id).getSockToSend(), clients.at(id).getSockaddr_in(), msg.c_str(), 0);
     if(r == -1) {
         cerr << "Failed to transmit message to " << clients.at(id).getFullName() << endl;
         return -3;
@@ -234,12 +239,31 @@ int ClientRec::transmitMsg() const {
     return 0;
 }
 
-bool ClientRec::sendHeartbeat() const {
-    char code = CODE_HEARTBEAT;
-    int r = usendto(getSockToSend(), getSockaddr_in(), &code);
+bool ClientRec::sendAnsHeartbeat() const {
+    char code = CODE_CLIHEARTBEAT;
+    int r = usendto(getSockToSend(), getSockaddr_in(), &code, 1);
     if(r < 0) {
         cerr << "Failed to send heartbeat to " << getFullName() << ": " << strerror(errno) << endl;
         return false;
     }
     return true;
+}
+
+bool ClientRec::sendReqHeartbeat() const {
+    char code = CODE_SRVHEARTBEAT;
+    int r = usendto(getSockToSend(), getSockaddr_in(), &code, 1);
+    if(r < 0) {
+        cerr << "Failed to send heartbeat to " << getFullName() << ": " << strerror(errno) << endl;
+        return false;
+    }
+    return true;
+}
+
+void ClientRec::sendAck() const {
+    unsigned char code = CODE_ACK;
+    sockaddr_in peer = getSockaddr_in();
+    int r = usendto(getSockToSend(), getSockaddr_in(), (char*) &code, 1);
+    if(r < 0) {
+        cerr << "Failed to send acknowlegement to " << getFullName() << ": " << strerror(errno) << endl;
+    }
 }
