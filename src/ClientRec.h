@@ -5,7 +5,6 @@
 #include "etcp.h"
 #include "Data.h"
 
-#define CODE_SRVMSG 0
 #define CODE_LOGINREQUEST 1
 #define CODE_LOGOUTREQUEST 2
 #define CODE_LOGINANSWER 3
@@ -15,6 +14,7 @@
 #define CODE_LOGOUTNOTIFY 7
 #define CODE_SRVERR 8
 #define CODE_HEARTBEAT 9
+#define CODE_SRVMSG 10
 
 #define CODE_INMSG 128
 #define CODE_OUTMSG 129

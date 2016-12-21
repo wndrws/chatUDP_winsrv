@@ -23,7 +23,7 @@ int findClient(string IDorName);
 
 DWORD WINAPI clientThread(LPVOID clientID) {
     int id = *((int*) clientID);
-    addr_id s = clients.at(id).getAddrID();
+    addr_id aid = clients.at(id).getAddrID();
     unsigned char code = 255;
     int rcvdb, r;
     string name = "<unknown>";
@@ -33,9 +33,9 @@ DWORD WINAPI clientThread(LPVOID clientID) {
     while(!clients.at(id).isToClose()) {
 //        if(mode == 0) {
 //            mode = 1;
-//            ioctlsocket(s, FIONBIO, &mode); // Make socket non-blocking
+//            ioctlsocket(aid, FIONBIO, &mode); // Make socket non-blocking
 //        }
-        rcvdb = readn(s, (char*) &code, 1);
+        rcvdb = readn(aid, (char*) &code, 1);
         if(rcvdb == 0) {
             clients.at(id).notify(NotificationType::LOGOUT);
             clients.at(id).close();
@@ -43,11 +43,11 @@ DWORD WINAPI clientThread(LPVOID clientID) {
         } else if(rcvdb < 0) {
             int error = WSAGetLastError();
             if(error == WSAEWOULDBLOCK || error == WSAEINTR) {
-                // It's ok, continue doing job after some time
+                // It'aid ok, continue doing job after some time
                 Sleep(200);
                 // TODO Need heartbeats from server as we don't know when client is crashed
             } else {
-                cerr << "Error: reading from socket " << s << endl;
+                cerr << "Error: reading from host " << aid << endl;
                 if (!clients.at(id).getName().empty())
                     cerr << "User " + name+"#"+to_string(id) + " is gone." << endl;
                 clients.at(id).notify(NotificationType::LOGOUT);
@@ -55,7 +55,8 @@ DWORD WINAPI clientThread(LPVOID clientID) {
             }
         } else {
 //            mode = 0;
-//            ioctlsocket(s, FIONBIO, &mode); // Make socket blocking again
+//            ioctlsocket(aid, FIONBIO, &mode); // Make socket blocking again
+            blockingMode = true;
             switch (code) {
                 case CODE_LOGINREQUEST:
                     clients.at(id).login();
@@ -83,22 +84,18 @@ DWORD WINAPI clientThread(LPVOID clientID) {
                     }
                     break;
                 default:
-                    cerr << "Info: Incorrect packet code received from socket " << s << endl;
+                    cerr << "Info: Incorrect packet code received from host " << aid << endl;
                     break;
             }
         }
         code = 255;
         clients.at(id).sendNotifications();
     }
-    shutdown(s, SD_BOTH);
-    cerr << "Info: Socket " << s << " is shut down." << endl;
-    CLOSE(s);
-    cerr << "Info: Socket " << s << " is closed." << endl;
     {
         SCOPE_LOCK_MUTEX(mutex.get());
         clients.erase(id);
     }
-    cerr << "Info: Client with id " << id << " at socket " << s << " is erased from users list." << endl;
+    cerr << "Info: Client with id " << id << " at host " << aid << " is erased from users list." << endl;
     return 0;
 }
 

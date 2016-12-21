@@ -24,7 +24,11 @@ void Data::addPacket(char *udp_data) {
     while(*p != '\n') { ++p; }
     unsigned long long ts_length = p - udp_data;
     string ts(udp_data, ts_length);
+    bool wasEmpty = packets.empty();
     packets.insert(Packet(ts, p+1));
+    if(wasEmpty) {
+        cur_byte = (char*) packets.cbegin()->getDataPointer();
+    }
 }
 
 void Data::setCurrentDataPointer(char *p) {

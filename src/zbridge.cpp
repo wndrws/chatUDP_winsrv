@@ -125,7 +125,8 @@ int ureadline(addr_id aid, char* bufptr, int len) {
     *bufx = '\n';
     if(cnt == size) fprintf(stderr, "Datagram end reached in ureadline()!\n");
 
-    return cnt;
+    storage.at(aid).setCurrentDataPointer(++ptr);
+    return ++cnt;
 //    while (--len > 0) {
 //        cnt = recv(aid, &c, 1, 0);
 //        if (cnt < 0) {

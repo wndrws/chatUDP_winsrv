@@ -72,7 +72,7 @@ void ClientRec::login() {
         cerr << "Error while reading request for login." << endl;
         return;
     }
-    username[r] = '\0';
+    username[r-1] = '\0';
     setName(string(username));
     //Send users list
     string msg = formUsersList();
@@ -192,9 +192,9 @@ void ClientRec::sendErrorMsg(int errcode, const string& descr) const {
 
 void ClientRec::sendMsg(const string &text) const {
     string msg = text + "\n";
-    uint16_t len = (uint16_t) htons((uint16_t) msg.size());
+    //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_SRVMSG);
-    msg.insert(1, (char*) &len, 2);
+    //msg.insert(1, (char*) &len, 2);
     int r = usendto(getSockToSend(), getSockaddr_in(), msg.c_str());
     if(r == -1) {
         cerr << "Failed to send message to " << getFullName() << endl;
